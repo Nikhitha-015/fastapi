@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 import models
 from database import Base, engine, get_db
-from schemas import PostCreate, PostResponse, UserCreate, UserResponse
+from schemas import PostCreate, PostResponse, UserCreate, UserResponse, PostUpdate
 from typing import Annotated
 
 Base.metadata.create_all(bind=engine)
@@ -66,6 +66,47 @@ def get_post_by_id(post_id: int, db: Annotated[Session, Depends(get_db)]):
         return post
     raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="Post not found")
 
+
+@app.put("/api/post/{post_id}", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+def update_post_full(post_id: int, post_data:PostCreate ,db: Annotated[Session, Depends(get_db)]):
+    post = db.execute(
+        select(models.Posts).where(models.Posts.id== post_id)
+    ).scalars().first()
+    if not post:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="Post not found")
+    if post_data.user_id != post.user_id:
+        user = db.execute(
+                select(models.User).where(models.User.id == post.user_id)
+            ).scalars().first()
+        if not user:
+            raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="user not found")
+
+    post.title = post_data.title
+    post.content = post_data.content
+    post.user_id = post_data.user_id
+
+    db.commit()
+    db.refresh(post)
+    return post
+
+
+@app.patch("/api/post/{post_id}", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+def update_post_partial(post_id: int, post_data:PostUpdate ,db: Annotated[Session, Depends(get_db)]):
+    post = db.execute(
+        select(models.Posts).where(models.Posts.id== post_id)
+    ).scalars().first()
+    if not post:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    update_data = post_data.model_dump(
+        exclude_unset= True
+    )
+    for field, value in update_data.items():
+        setattr(post, field, value)
+        
+    db.commit()
+    db.refresh(post)
+    return post
 
 @app.get("/api/users", response_model=list[UserResponse])
 def get_user(db: Annotated[Session, Depends(get_db)]):
@@ -186,3 +227,4 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
         {"request": request, "message": "Validation error", "details": exc.errors()},
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
+

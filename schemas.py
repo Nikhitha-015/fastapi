@@ -27,10 +27,8 @@ class PostCreate(PostBase):
 
 
 class PostUpdate(PostBase):
-    title: str |None = Field(min_length=1, max_length=100)
-    content: str| None= Field(min_length=1)
-    author : str |None = Field( min_length=1, max_length=100)
-
+    title: str |None = Field(default=None,min_length=1, max_length=100)
+    content: str|None= Field(min_length=1)
 
 class PostResponse(PostBase):
     model_config = ConfigDict(form_attributes=True)
