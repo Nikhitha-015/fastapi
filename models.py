@@ -1,36 +1,45 @@
-from datetime import datetime, UTC
-from sqlalchemy import DateTime, Column, Integer, String, Text, ForeignKey
-from sqlalchemy.orm import mapped_column, Mapped, relationship
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database import Base
+
 
 class User(Base):
     __tablename__ = "users"
-    id : Mapped[int] = mapped_column(Integer, index=True, primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False )
-    email_address: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    image_file : Mapped[str |None] = mapped_column(String(200))
-    posts: Mapped[list[Posts]] = relationship(back_populates="author")
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    email_address: Mapped[str] = mapped_column(
+        String(254), unique=True, nullable=False
+    )
+    image_file: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    posts: Mapped[list["Post"]] = relationship(
+        back_populates="author", cascade="all, delete-orphan"
+    )
 
     @property
-    def image_path(self) -> str:
+    def image_path(self) -> str | None:
         if self.image_file:
             return f"/media/profile_pics/{self.image_file}"
-        return "/static/profile_pics/default.jpg"
+        return None
 
 
-class Posts(Base):
+class Post(Base):
     __tablename__ = "posts"
-    id : Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    title: Mapped[int]= mapped_column(String(100),nullable=False )
-    content: Mapped[str]= mapped_column(Text, nullable=True)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        nullable=False
+        nullable=False,
     )
-    date_posted : Mapped[datetime]= mapped_column(
+    date_posted: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default = lambda: datetime.now(UTC)
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )
     author: Mapped[User] = relationship(back_populates="posts")
